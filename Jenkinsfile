@@ -70,8 +70,7 @@ pipeline {
     post {
         always {
             sh '''
-                docker compose down || true
-                docker image prune -f
+                docker images
             '''
             cleanWs()
         }
