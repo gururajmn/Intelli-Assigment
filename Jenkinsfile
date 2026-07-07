@@ -1,18 +1,17 @@
 pipeline {
- 
     agent any
  
     environment {
-        APP_NAME = "task-tracker"
         IMAGE_NAME = "task-tracker"
-        APP_PORT = "3000"
+        IMAGE_TAG = "latest"
     }
  
     stages {
  
         stage('SCM Pull') {
             steps {
-                checkout scm
+                git branch: 'main',
+                    url: 'https://github.com/gururajmn/Intelli-Assigment.git'
             }
         }
  
@@ -28,7 +27,7 @@ pipeline {
         stage('Build') {
             steps {
                 sh '''
-                    docker build -t ${IMAGE_NAME}:latest .
+                    docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
                 '''
             }
         }
@@ -37,45 +36,44 @@ pipeline {
             steps {
                 sh '''
                     docker rm -f task-tracker || true
-                    docker compose down || true
-                    docker compose up -d --build
+                    docker-compose up -d
                 '''
             }
         }
  
-        stage('Curl Verification') {
+        stage('Wait for Application') {
             steps {
                 sh '''
+                    echo "Waiting for application..."
                     sleep 10
- 
-                    echo "========== ROOT =========="
-                    curl http://localhost:3000/
- 
-                    echo ""
- 
-                    echo "========== HEALTH =========="
-                    curl http://localhost:3000/health
- 
-                    echo ""
- 
-                    echo "========== TASKS =========="
-                    curl http://localhost:3000/api/tasks
- 
-                    echo ""
                 '''
             }
         }
-    }
  
-    post {
-        always {
-            sh '''
-                docker compose down || true
-                docker image prune -f
-            '''
-            cleanWs()
+        stage('Curl') {
+            steps {
+                sh '''
+                    echo "========== HOME =========="
+                    curl --retry 10 --retry-delay 2 --retry-connrefused http://localhost:3000/
+ 
+                    echo ""
+                    echo "========== HEALTH =========="
+                    curl --retry 10 --retry-delay 2 --retry-connrefused http://localhost:3000/health
+ 
+                    echo ""
+                    echo "========== TASKS =========="
+                    curl --retry 10 --retry-delay 2 --retry-connrefused http://localhost:3000/api/tasks
+                '''
+            }
+        }
+ 
+        stage('Cleanup') {
+            steps {
+                sh '''
+                    docker image prune -f
+                '''
+                cleanWs()
+            }
         }
     }
 }
-➕
-
